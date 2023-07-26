@@ -82,9 +82,9 @@ class Cake(models.Model):
             super().save(*args, **kwargs)
 
             if self.is_custom:
-                self.topping.set([self.topping.name])
-                self.berry.set(self.berry.all())
-                self.decor.set(self.decor.all())
+                self.topping.set([topping.name for topping in self.topping.all()])
+                self.berry.set([berry.name for berry in self.berry.all()])
+                self.decor.set([decor.name for decor in self.decor.all()])
 
 
 class Order(models.Model):
@@ -104,17 +104,28 @@ class Order(models.Model):
     def calculate_total_price(self):
         cake_price = self.cake.price
         topping_price = sum(self.cake.topping.all().values_list('price', flat=True))
-        berry_price = sum(self.cake.berries.all().values_list('price', flat=True))
+        berry_price = sum(self.cake.berry.all().values_list('price', flat=True))
         decor_price = sum(self.cake.decor.all().values_list('price', flat=True))
         inscription_price = 500 if self.inscription else 0
         return cake_price + topping_price + berry_price + decor_price + inscription_price
 
     def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
         self.total_price = self.calculate_total_price()
+
+        # Если торт кастомный, то общая стоимость равна цене торта (без дополнительных топпингов и ягод)
+        if self.cake.is_custom:
+            if self.inscription:
+                self.total_price = 500 + self.cake.price
+            else:
+                self.total_price = self.cake.price
+
+
+        # Если у торта нет имени, то задаем его
         if not self.cake.name:
             self.cake.name = f"Торт для {self.customer_name}"
             self.cake.save()
+
+        super().save(*args, **kwargs)
 
 
 class OrderStatus(models.Model):
