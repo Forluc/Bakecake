@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 
 
 class Dough(models.Model):
@@ -57,20 +57,34 @@ class Inscription(models.Model):
 
 
 class Cake(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField()
-    price = models.DecimalField(max_digits=6, decimal_places=2)
     is_custom = models.BooleanField(default=False)
+    name = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
+    price = models.DecimalField(max_digits=6, decimal_places=2, blank=True)
 
     dough = models.ForeignKey(Dough, on_delete=models.CASCADE)
     level = models.ForeignKey(Level, on_delete=models.SET_DEFAULT, default=1)
     shape = models.ForeignKey(Shape, on_delete=models.SET_DEFAULT, default='Квадрат')
     topping = models.ManyToManyField('Topping', default='Без топпинга')
-    berries = models.ManyToManyField('Berry', blank=True)
+    berry = models.ManyToManyField('Berry', blank=True)
     decor = models.ManyToManyField('Decor', blank=True)
 
     def __str__(self):
-        return f'{self.name}, {self.description}'
+        return f'{self.name}, {self.price}'
+
+    def save(self, *args, **kwargs):
+        if self.is_custom:
+            description = 'Это кастомный торт'
+            self.name = f"Торт из {self.dough} теста"
+            self.price = 500 + self.level.price + self.shape.price
+
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+
+            if self.is_custom:
+                self.topping.set([self.topping.name])
+                self.berry.set(self.berry.all())
+                self.decor.set(self.decor.all())
 
 
 class Order(models.Model):
@@ -98,7 +112,9 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.total_price = self.calculate_total_price()
-        super().save(*args, **kwargs)
+        if not self.cake.name:
+            self.cake.name = f"Торт для {self.customer_name}"
+            self.cake.save()
 
 
 class OrderStatus(models.Model):
