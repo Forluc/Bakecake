@@ -112,19 +112,11 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         self.total_price = self.calculate_total_price()
 
-        # Если торт кастомный, то общая стоимость равна цене торта (без дополнительных топпингов и ягод)
         if self.cake.is_custom:
             if self.inscription:
                 self.total_price = 500 + self.cake.price
             else:
                 self.total_price = self.cake.price
-
-
-        # Если у торта нет имени, то задаем его
-        if not self.cake.name:
-            self.cake.name = f"Торт для {self.customer_name}"
-            self.cake.save()
-
         super().save(*args, **kwargs)
 
 
