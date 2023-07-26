@@ -74,7 +74,7 @@ class Cake(models.Model):
 
     def save(self, *args, **kwargs):
         if self.is_custom:
-            description = 'Это кастомный торт'
+            self.description = 'Это кастомный торт'
             self.name = f"Торт из {self.dough} теста"
             self.price = 500 + self.level.price + self.shape.price
 
