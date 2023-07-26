@@ -82,9 +82,10 @@ class Cake(models.Model):
             super().save(*args, **kwargs)
 
             if self.is_custom:
-                self.topping.set([topping.name for topping in self.topping.all()])
-                self.berry.set([berry.name for berry in self.berry.all()])
-                self.decor.set([decor.name for decor in self.decor.all()])
+                # Обновляем связанные объекты через методы менеджера ManyRelatedManager
+                self.topping.set(self.topping.all())
+                self.berry.set(self.berry.all())
+                self.decor.set(self.decor.all())
 
 
 class Order(models.Model):
@@ -125,4 +126,3 @@ class OrderStatus(models.Model):
 
     def __str__(self):
         return self.name
-
