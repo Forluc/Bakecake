@@ -82,7 +82,6 @@ class Cake(models.Model):
             super().save(*args, **kwargs)
 
             if self.is_custom:
-                # Обновляем связанные объекты через методы менеджера ManyRelatedManager
                 self.topping.set(self.topping.all())
                 self.berry.set(self.berry.all())
                 self.decor.set(self.decor.all())
