@@ -64,7 +64,6 @@ class Cake(models.Model):
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=6, decimal_places=2, blank=True)
 
-    dough = models.ForeignKey(Dough, on_delete=models.CASCADE)
     level = models.ForeignKey(Level, on_delete=models.SET_DEFAULT, default=1)
     shape = models.ForeignKey(Shape, on_delete=models.SET_DEFAULT, default='Квадрат')
     topping = models.ManyToManyField('Topping', default='Без топпинга')
@@ -77,7 +76,7 @@ class Cake(models.Model):
     def save(self, *args, **kwargs):
         if self.is_custom:
             self.description = 'Это кастомный торт'
-            self.name = f"Торт из {self.dough} теста"
+            self.name = f"Торт {self.level} слойный"
             self.price = 500 + self.level.price + self.shape.price
 
         with transaction.atomic():
