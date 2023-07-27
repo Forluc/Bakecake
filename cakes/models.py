@@ -1,5 +1,6 @@
 from django.db import models, transaction
 
+
 class TelegramUser(models.Model):
     user_id = models.IntegerField(unique=True)
     first_name = models.CharField(max_length=100)
