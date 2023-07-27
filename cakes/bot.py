@@ -1,23 +1,56 @@
-import telebot
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
-from bot_other import bot, chats, client_markup, markup_choose_cake
-import time
+import datetime
 
+from environs import Env
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
+import telebot
 import django
 import os
+import time
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bakecake.settings")
 django.setup()
+from cakes.models import Level, Shape, Topping, Berry, Decor, Inscription, Cake, Order, OrderStatus
 
-from models import Cake
+Env().read_env()
+token = Env().str('TG_TOKEN')
+bot = telebot.TeleBot(token)
+
+chats = {}
 
 
-def start_bot(message: telebot.types.Message):
-    bot.send_message(message.chat.id, f'Привет, {message.from_user.first_name}.')
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(call):
+    if call.data == 'main':
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton(text='Заказать новый торт', callback_data='new'))
+        markup.add(InlineKeyboardButton(text='Заказать классические торты', callback_data='ready'))
+        markup.add(InlineKeyboardButton(text='Промо акции', callback_data='promo'))
+        bot.send_photo(call.message.chat.id,
+                       r'https://media.istockphoto.com/id/625726848/ru/%D1%84%D0%BE%D1%82%D0%BE/%D0%B2%D0%BD%D0%B5-%D1%81%D0%B5%D0%B1%D1%8F-%D0%BE%D1%82-%D1%80%D0%B0%D0%B4%D0%BE%D1%81%D1%82%D0%B8-%D0%BF%D0%BE%D0%B6%D0%B8%D0%BB%D1%8B%D0%B5-%D0%BB%D1%8E%D0%B4%D0%B8-%D0%BF%D1%80%D0%B0%D0%B7%D0%B4%D0%BD%D1%83%D1%8E%D1%82-%D0%B4%D0%B5%D0%BD%D1%8C-%D1%80%D0%BE%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F-%D1%81-%D1%82%D0%BE%D1%80%D1%82%D0%BE%D0%BC-%D0%B8-%D0%B2%D0%BE%D0%B7%D0%B4%D1%83%D1%88%D0%BD%D1%8B%D0%BC-%D1%88%D0%B0%D1%80%D0%BE%D0%BC.jpg?s=612x612&w=is&k=20&c=v8gc5liS19KsGnm3Fi3iosDcWEQj13k4eCh3gsoQEmk=',
+                       'Вы знали, что у нас самые лучшие торты, попробуйте заказать', reply_markup=markup)
+
+    if call.data == 'promo':
+        promotions(call.message)
+    if call.data == 'new':
+        get_cake(call.message, 1)
+    if call.data == 'ready':
+        markup = ReplyKeyboardMarkup()
+        cakes = Cake.objects.all()
+        for cake in cakes:
+            markup.add(KeyboardButton(f'{cake.name}, Цена: {cake.price}'))
+        msg = bot.send_message(call.message.chat.id, 'Торты доступные к заказу:', reply_markup=markup)
+        bot.register_next_step_handler(msg, get_cake, 4)
+
+
+@bot.message_handler(commands=['start'])
+def start(message):
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton('Конечно', callback_data='main'))
+    bot.send_message(message.chat.id, f'Привет, {message.from_user.first_name}. Хочешь тортик?', reply_markup=markup)
     chats[message.chat.id] = {
         'ready_cake': None,
         'level': None,
-        'form': None,
+        'shape': None,
         'topping': None,
         'berry': None,
         'decor': None,
@@ -27,114 +60,94 @@ def start_bot(message: telebot.types.Message):
         'address': None,
         'delivery_time': None,
         'comment': None,
+        'customer_name': message.from_user.first_name,
+        'cake_id': None
     }
-    show_main_menu(message.chat.id)
 
 
-def show_main_menu(chat_id):  # TODO Добавить данные по надобности(фото или описание)
-    bot.send_photo(chat_id,
-                   r'https://media.istockphoto.com/id/625726848/ru/%D1%84%D0%BE%D1%82%D0%BE/%D0%B2%D0%BD%D0%B5-%D1%81%D0%B5%D0%B1%D1%8F-%D0%BE%D1%82-%D1%80%D0%B0%D0%B4%D0%BE%D1%81%D1%82%D0%B8-%D0%BF%D0%BE%D0%B6%D0%B8%D0%BB%D1%8B%D0%B5-%D0%BB%D1%8E%D0%B4%D0%B8-%D0%BF%D1%80%D0%B0%D0%B7%D0%B4%D0%BD%D1%83%D1%8E%D1%82-%D0%B4%D0%B5%D0%BD%D1%8C-%D1%80%D0%BE%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F-%D1%81-%D1%82%D0%BE%D1%80%D1%82%D0%BE%D0%BC-%D0%B8-%D0%B2%D0%BE%D0%B7%D0%B4%D1%83%D1%88%D0%BD%D1%8B%D0%BC-%D1%88%D0%B0%D1%80%D0%BE%D0%BC.jpg?s=612x612&w=is&k=20&c=v8gc5liS19KsGnm3Fi3iosDcWEQj13k4eCh3gsoQEmk=',
-                   'Вы знали, что у нас самые лучшие торты, попробуйте заказать', reply_markup=client_markup)
-
-
-def promotions(message: telebot.types.Message):  # TODO Добавить данные по надобности(фото или описание)
+def promotions(message):  # TODO Добавить данные по надобности(фото или описание)
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton(text='На главную', callback_data='main'))
     bot.send_photo(message.chat.id,
                    r'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTcImnndASe8l1YxGEWAtTBcy_muhX-c0KTHg&usqp=CAU',
-                   'На сегодня нет акций, посмотрите завтра')
-    time.sleep(2)
-    show_main_menu(message.chat.id)
+                   'На сегодня нет акций, посмотрите завтра', reply_markup=markup)
+    return
 
 
-def get_cake(message: telebot.types.Message, step='main_menu'):
+def show_main_menu(chat_id):
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton(text='Заказать новый торт', callback_data='new'))
+    markup.add(InlineKeyboardButton(text='Заказать классические торты', callback_data='ready'))
+    markup.add(InlineKeyboardButton(text='Промо акции', callback_data='promo'))
+    bot.send_photo(chat_id,
+                   r'https://media.istockphoto.com/id/625726848/ru/%D1%84%D0%BE%D1%82%D0%BE/%D0%B2%D0%BD%D0%B5-%D1%81%D0%B5%D0%B1%D1%8F-%D0%BE%D1%82-%D1%80%D0%B0%D0%B4%D0%BE%D1%81%D1%82%D0%B8-%D0%BF%D0%BE%D0%B6%D0%B8%D0%BB%D1%8B%D0%B5-%D0%BB%D1%8E%D0%B4%D0%B8-%D0%BF%D1%80%D0%B0%D0%B7%D0%B4%D0%BD%D1%83%D1%8E%D1%82-%D0%B4%D0%B5%D0%BD%D1%8C-%D1%80%D0%BE%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F-%D1%81-%D1%82%D0%BE%D1%80%D1%82%D0%BE%D0%BC-%D0%B8-%D0%B2%D0%BE%D0%B7%D0%B4%D1%83%D1%88%D0%BD%D1%8B%D0%BC-%D1%88%D0%B0%D1%80%D0%BE%D0%BC.jpg?s=612x612&w=is&k=20&c=v8gc5liS19KsGnm3Fi3iosDcWEQj13k4eCh3gsoQEmk=',
+                   'Вы знали, что у нас самые лучшие торты, попробуйте заказать', reply_markup=markup)
+    return
+
+
+def get_cake(message, step):
     user = chats[message.chat.id]
-    if step == 'main_menu':
-        msg = bot.send_message(message.chat.id, 'Закажите один из классических тортов или создайте свой',
-                               reply_markup=markup_choose_cake)
-        bot.register_next_step_handler(msg, get_cake, 1)
-    elif step == 1:
-        if message.text == 'Готовый торт':
-            markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-            ready_cakes = {  # TODO взять данные из БД
-                'Бисквитный': {'Цена': 1000, 'Состав': ['Яйца', 'Вода', 'Крем']},
-                'Песочный': {'Цена': 1500, 'Состав': ['Яйца', 'Вода', 'Крем']},
-                'Творожный': {'Цена': 2000, 'Состав': ['Яйца', 'Вода', 'Крем']},
-            }
-            for cake, cake_info in ready_cakes.items():
-                markup.add(KeyboardButton(f'{cake} Цена:{cake_info["Цена"]}'))
-            markup.add(KeyboardButton('Главное меню'))
-            msg = bot.send_message(message.chat.id, 'Торты доступные к заказу:', reply_markup=markup)
-            return bot.register_next_step_handler(msg, get_cake, 4)
-
-        cake_information = {  # TODO взять данные из БД
-            '1 уровень': 400,
-            '2 уровня': 750,
-            '3 уровня': 1100,
-        }
+    if step == 1:
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        for cake, cake_info in cake_information.items():
-            markup.add(KeyboardButton(f'{cake} (Цена:{cake_info})'))
+        levels = Level.objects.all()
+        for level in levels:
+            markup.add(KeyboardButton(f'{level.level}, (Цена: {level.price})'))
         markup.add(KeyboardButton('Главное меню'))
         msg = bot.send_photo(message.chat.id,
                              r'https://i.pinimg.com/originals/84/2e/89/842e89f178017480c87c4e530084bdca.jpg',
                              'Количество уровней:', reply_markup=markup)
-        bot.register_next_step_handler(msg, get_cake, 2)
+        return bot.register_next_step_handler(msg, get_cake, 2)
+
     elif step == 2:
-        user['level'] = message.text
+        user['level'] = message.text[:message.text.find(',')]
         if message.text == 'Главное меню':
             return show_main_menu(message.chat.id)
-        cake_information = {  # TODO взять данные из БД
-            'Квадрат': 400,
-            'Круг': 750,
-            'Прямоугольник': 1100,
-        }
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        for cake, cake_info in cake_information.items():
-            markup.add(KeyboardButton(f'{cake} (Цена:{cake_info})'))
+        shapes = Shape.objects.all()
+        for shape in shapes:
+            markup.add(KeyboardButton(f'{shape.shape}, (Цена: {shape.price})'))
         markup.add(KeyboardButton('Главное меню'))
         msg = bot.send_photo(message.chat.id, r'https://basket-01.wb.ru/vol138/part13858/13858945/images/big/1.jpg',
                              'Форма для торта', reply_markup=markup)
-        bot.register_next_step_handler(msg, get_cake, 3)
+        return bot.register_next_step_handler(msg, get_cake, 3)
+
     elif step == 3:
-        user['form'] = message.text
+        user['shape'] = message.text[:message.text.find(',')]
         if message.text == 'Главное меню':
             return show_main_menu(message.chat.id)
-        cake_information = {  # TODO взять данные из БД
-            'Белый соус': 400,
-            'Карамельный сироп': 750,
-            'Клубничный сироп': 1100,
-        }
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        for cake, cake_info in cake_information.items():
-            markup.add(KeyboardButton(f'{cake} (Цена:{cake_info})'))
+        toppings = Topping.objects.all()
+        for topping in toppings:
+            markup.add(KeyboardButton(f'{topping}'))
         markup.add(KeyboardButton('Главное меню'))
         msg = bot.send_photo(message.chat.id,
                              r'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcReYS9aeqwbgfu4V4CiONdNbqbiMEmLAdZDbw&usqp=CAU',
                              'Выбор сиропа', reply_markup=markup)
-        bot.register_next_step_handler(msg, get_cake, 4)
+        return bot.register_next_step_handler(msg, get_cake, 4)
     elif step == 4:
-        if message.text in ['Белый соус', ]:
-            user['topping'] = message.text
-        else:
-            user['ready_cake'] = message.text
+        for topping in Topping.objects.all():
+            if message.text == str(topping):
+                user['topping'] = message.text[:message.text.find(',')]
+                break
+            else:
+                user['ready_cake'] = message.text
+                user['cake_id'] = Cake.objects.filter(name=message.text[:message.text.find(',')]).first().id
+                break
         if message.text == 'Главное меню':
             return show_main_menu(message.chat.id)
-        cake_information = {  # TODO взять данные из БД
-            'Ежевика': 400,
-            'Малина': 750,
-            'Клубника': 1100,
-        }
+        berries = Berry.objects.all()
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        for cake, cake_info in cake_information.items():
-            markup.add(KeyboardButton(f'{cake} (Цена:{cake_info})'))
+        for berry in berries:
+            markup.add(KeyboardButton(f'{berry.name}, Цена {berry.price}'))
         markup.add(KeyboardButton('Главное меню'))
         markup.add(KeyboardButton('Оформить заказ'))
         markup.add(KeyboardButton('Пропустить'))
         msg = bot.send_photo(message.chat.id,
                              r'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTB3VGZ1-Xpckl65Ij3AgvzEdmyedtghSLm0w&usqp=CAU',
                              'Ягоды для торта', reply_markup=markup)
-        bot.register_next_step_handler(msg, get_cake, 5)
+        return bot.register_next_step_handler(msg, get_cake, 5)
     elif step == 5:
-        user['berry'] = message.text
+        user['berry'] = message.text[:message.text.find(',')]
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         if message.text == 'Главное меню':
             return show_main_menu(message.chat.id)
@@ -146,21 +159,18 @@ def get_cake(message: telebot.types.Message, step='main_menu'):
             return bot.register_next_step_handler(message, delivery, 'order_cake')
         elif message.text == 'Пропустить':
             user['berry'] = None
-        cake_information = {  # TODO взять данные из БД
-            'Фисташки': 400,
-            'Безе': 750,
-        }
-        for cake, cake_info in cake_information.items():
-            markup.add(KeyboardButton(f'{cake} (Цена:{cake_info})'))
+        decors = Decor.objects.all()
+        for decor in decors:
+            markup.add(KeyboardButton(f'{decor.name}, Цена: {decor.price}'))
         markup.add(KeyboardButton('Главное меню'))
         markup.add(KeyboardButton('Оформить заказ'))
         markup.add(KeyboardButton('Пропустить'))
         msg = bot.send_photo(message.chat.id,
                              r'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRRL0J9gnCk1PYz1zx4H3ybiYOA_aaxYmFPug&usqp=CAU',
                              'Декор для торта', reply_markup=markup)
-        bot.register_next_step_handler(msg, get_cake, 6)
+        return bot.register_next_step_handler(msg, get_cake, 6)
     elif step == 6:
-        user['decor'] = message.text
+        user['decor'] = message.text[:message.text.find(',')]
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         if message.text == 'Главное меню':
             return show_main_menu(message.chat.id)
@@ -176,9 +186,9 @@ def get_cake(message: telebot.types.Message, step='main_menu'):
         markup.add(KeyboardButton('Оформить заказ'))
         msg = bot.send_photo(message.chat.id,
                              r'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJ0sDLEcxz7BzeNgpLz0dUow5DBXUnWvmhhA&usqp=CAU',
-                             'Мы можем разместить на торте любую надпись, например: «С днем рождения!»\nДля этого введите ниже надпись',
+                             f'Мы можем разместить на торте любую надпись, например: «С днем рождения!»\nСтоимость {Inscription.objects.all().first().price} рублей\nДля этого введите ниже надпись',
                              reply_markup=markup)
-        bot.register_next_step_handler(msg, get_cake, 7)
+        return bot.register_next_step_handler(msg, get_cake, 7)
 
     elif step == 7:
         user['inscription'] = message.text
@@ -190,10 +200,20 @@ def get_cake(message: telebot.types.Message, step='main_menu'):
         markup.add(KeyboardButton('Подтвердить'))
         bot.send_message(message.chat.id,
                          'Подтверждая, вы принимаете условия по обработке персональных данных', reply_markup=markup)
+        if not user['ready_cake']:
+            Cake.objects.create(
+                # TODO Торт который создастся нужно приписать к заявке, найти его id и добавить к user['cake_id']
+                level=Level.objects.filter(level=user['level']).first(),
+                shape=Shape.objects.filter(shape=user['shape']).first(),
+                topping=Topping.objects.filter(name=user['topping']).first(),  # TODO подтянуть данные ManyToMany
+                berry=Berry.objects.filter(name=user['berry']).first(),  # TODO подтянуть данные ManyToMany
+                decor=Decor.objects.filter(name=user['decor']).first(),  # TODO подтянуть данные ManyToMany
+            )
+
         return bot.register_next_step_handler(message, delivery, 'order_cake')
 
 
-def delivery(message: telebot.types.Message, step='order_cake'):
+def delivery(message, step='order_cake'):
     user = chats[message.chat.id]
     if step == 'order_cake':
         user['agreement'] = True
@@ -201,20 +221,20 @@ def delivery(message: telebot.types.Message, step='order_cake'):
         markup.add(KeyboardButton('Доставка на дом'))
         markup.add(KeyboardButton('Самовывоз'))
         msg = bot.send_message(message.chat.id, 'Выберите способ получения торта', reply_markup=markup)
-        bot.register_next_step_handler(msg, delivery, 'choose_delivery')
+        return bot.register_next_step_handler(msg, delivery, 'choose_delivery')
 
     elif step == 'choose_delivery':
         if message.text == 'Доставка на дом':
             msg = bot.send_message(message.chat.id, 'Введите адрес доставки')
-            bot.register_next_step_handler(msg, delivery, 'show_available_time')
-        if message.text == 'Самовывоз':
+            return bot.register_next_step_handler(msg, delivery, 'show_available_time')
+        elif message.text == 'Самовывоз':
             user['delivery'] = message.text
             markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             markup.add(KeyboardButton('Отлично'))
             msg = bot.send_message(message.chat.id, 'Самовывоз доступен только на ул. Уличная, д.1, кв.1',
-                                   # TODO взять данные из БД
                                    reply_markup=markup)
-            bot.register_next_step_handler(msg, delivery, 'show_available_time_pickup')
+
+            return bot.register_next_step_handler(msg, delivery, 'show_available_time_pickup')
 
     elif step == 'show_available_time':
         user['delivery'] = True
@@ -228,9 +248,10 @@ def delivery(message: telebot.types.Message, step='order_cake'):
                              r'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRpw2GptQezN2NNZKvwBTUVeVFJ1GofOD4OfA&usqp=CAU',
                              f'Адрес магазина: ул. Уличная, д.1, кв.1\nВыберите время доставки',
                              reply_markup=markup)  # TODO наполнение из БД для доставки
-        bot.register_next_step_handler(msg, delivery, 'confirmation')
+        return bot.register_next_step_handler(msg, delivery, 'confirmation')
     elif step == 'show_available_time_pickup':
         user['delivery'] = False
+        user['address'] = 'Самовывоз'
         shops = {'ул. Уличная, д.1, кв.1': ['09:00-12:00', '15:00-18:00']}  # TODO наполнение из БД для доставки
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         for shop, times in shops.items():
@@ -240,7 +261,7 @@ def delivery(message: telebot.types.Message, step='order_cake'):
                              r'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRpw2GptQezN2NNZKvwBTUVeVFJ1GofOD4OfA&usqp=CAU',
                              f'Адрес магазина: ул. Уличная, д.1, кв.1\nВыберите время во сколько будет удобно забрать торт',
                              reply_markup=markup)  # TODO наполнение из БД для доставки
-        bot.register_next_step_handler(msg, delivery, 'confirmation')
+        return bot.register_next_step_handler(msg, delivery, 'confirmation')
     elif step == 'confirmation':
         user['delivery_time'] = message.text
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
@@ -248,19 +269,44 @@ def delivery(message: telebot.types.Message, step='order_cake'):
         markup.add(KeyboardButton('Завершить заказ'))
         msg = bot.send_message(message.chat.id, 'Желаете ли вы оставить комментарий для кондитерской?',
                                reply_markup=markup)
-        bot.register_next_step_handler(msg, delivery, 'comment_or_finish')
+        return bot.register_next_step_handler(msg, delivery, 'comment_or_finish')
     elif step == 'comment_or_finish':
         if message.text == 'Завершить заказ':
-            # TODO Занести заказ юзера в БД
+            Order.objects.create(
+                customer_name=user['customer_name'],
+                cake=Cake.objects.get(id=user['cake_id']),
+                delivery_address=user['address'],
+                delivery_date=datetime.datetime.now().strftime('%Y-%m-%d'),
+                delivery_time=datetime.datetime.now().strftime('%H:%M:%S'),
+                status=OrderStatus.objects.get(id=1),
+                inscription=user['inscription']
+            )
             bot.send_message(message.chat.id, 'Ваш заказ оформлен')
             time.sleep(2)
-            return start_bot(message)
+            return start(message)
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         msg = bot.send_message(message.chat.id, 'Напишите комментарий', reply_markup=markup)
-        bot.register_next_step_handler(msg, delivery, 'comment_and_finish')
+        return bot.register_next_step_handler(msg, delivery, 'comment_and_finish')
     elif step == 'comment_and_finish':
         user['comment'] = message.text
         bot.send_message(message.chat.id, 'Ваш заказ оформлен')
-        # TODO Занести заказ юзера в БД
+        Order.objects.create(
+            customer_name=user['customer_name'],
+            comment=user['comment'],
+            cake=Cake.objects.get(id=user['cake_id']),
+            delivery_address=user['address'],
+            delivery_date=datetime.datetime.now().strftime('%Y-%m-%d'),
+            delivery_time=datetime.datetime.now().strftime('%H:%M:%S'),
+            status=OrderStatus.objects.get(id=1),
+            inscription=user['inscription']
+        )
         time.sleep(2)
-        return start_bot(message)
+        return start(message)
+
+
+def run_bot():
+    bot.polling(none_stop=True)
+
+
+if __name__ == '__main__':
+    run_bot()
