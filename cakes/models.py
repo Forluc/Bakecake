@@ -76,7 +76,7 @@ class Cake(models.Model):
     def save(self, *args, **kwargs):
         if self.is_custom:
             self.description = 'Это кастомный торт'
-            self.name = f"Торт {self.level} слойный"
+            self.name = f"Торт {self.level.level} слойный"
             self.price = 500 + self.level.price + self.shape.price
 
         with transaction.atomic():
