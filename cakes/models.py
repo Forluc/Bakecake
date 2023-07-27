@@ -1,5 +1,6 @@
 from django.db import models, transaction
 
+
 class TelegramUser(models.Model):
     user_id = models.IntegerField(unique=True)
     first_name = models.CharField(max_length=100)
@@ -92,11 +93,11 @@ class Order(models.Model):
     customer_name = models.CharField(max_length=100)
     comment = models.CharField(max_length=250, blank=True)
     cake = models.ForeignKey(Cake, on_delete=models.CASCADE)
-    delivery_address = models.TextField()
+    delivery_address = models.TextField(blank=True)
     delivery_date = models.DateField()
     delivery_time = models.TimeField()
     total_price = models.DecimalField(max_digits=8, decimal_places=2, default=0)
-    status = models.ForeignKey('OrderStatus', on_delete=models.SET_NULL, null=True)
+    status = models.ForeignKey('OrderStatus', on_delete=models.SET_NULL, null=True, blank=True)
     inscription = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
