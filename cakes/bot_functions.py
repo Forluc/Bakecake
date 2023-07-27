@@ -9,7 +9,7 @@ import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bakecake.settings")
 django.setup()
 
-from cakes.models import Cake
+from models import Cake
 
 
 def start_bot(message: telebot.types.Message):
