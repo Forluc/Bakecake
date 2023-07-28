@@ -23,7 +23,6 @@ def callback_query(call):
     if call.message.chat.id not in chats:
         # Если пользователя еще нет в словаре, создаем запись для него
         chats[call.message.chat.id] = {}
-
     # Кнопка основного меню
     if call.data == 'main':
         markup = InlineKeyboardMarkup()
@@ -143,11 +142,14 @@ def get_cake(message, step):
         return bot.register_next_step_handler(msg, get_cake, 4)
     # Выбор ягод для торта
     elif step == 4:
+        user['ready_cake'] = None
+        user['topping'] = None
         for topping in Topping.objects.all():
             if message.text == str(topping):
                 user['topping'] = message.text[:message.text.find(',')]
                 break
         if not user['topping']:
+
             user['ready_cake'] = message.text
             user['cake_id'] = Cake.objects.filter(name=message.text[:message.text.find(',')]).first().id
 
@@ -222,7 +224,7 @@ def get_cake(message, step):
                          'Подтверждая, вы принимаете условия по обработке персональных данных', reply_markup=markup)
         if not user['ready_cake']:
             cake = Cake.objects.create(
-                # TODO Добавлять торт исходя из введеных данных пользователем
+                # TODO Добавлять торт исходя из введенных данных пользователя
                 is_custom=True,
                 level=Level.objects.filter(level=user['level']).first(),
                 shape=Shape.objects.filter(shape=user['shape']).first(),
