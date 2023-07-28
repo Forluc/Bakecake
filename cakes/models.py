@@ -16,7 +16,8 @@ class Shape(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2, default=400)
 
     def __str__(self):
-        return f'{self.shape} +{self.price}'
+        formatted_price = "{:.0f}".format(self.price)
+        return f'{self.shape}, +{formatted_price}'
 
 
 class Level(models.Model):
@@ -24,7 +25,8 @@ class Level(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2, default=400)
 
     def __str__(self):
-        return f'{str(self.level)} +{self.price}'
+        formatted_price = "{:.0f}".format(self.price)
+        return f'{self.level}, +{formatted_price}'
 
 
 class Topping(models.Model):
@@ -32,7 +34,8 @@ class Topping(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2, default=0)
 
     def __str__(self):
-        return f'{self.name}, +{self.price}'
+        formatted_price = "{:.0f}".format(self.price)
+        return f'{self.name}, +{formatted_price}'
 
 
 class Berry(models.Model):
@@ -40,7 +43,8 @@ class Berry(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2)
 
     def __str__(self):
-        return f'{self.name}, +{self.price}'
+        formatted_price = "{:.0f}".format(self.price)
+        return f'{self.name}, +{formatted_price}'
 
 
 class Decor(models.Model):
@@ -48,7 +52,8 @@ class Decor(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2)
 
     def __str__(self):
-        return f'{self.name}, +{self.price}'
+        formatted_price = "{:.0f}".format(self.price)
+        return f'{self.name}, +{formatted_price}'
 
 
 class Inscription(models.Model):
@@ -56,7 +61,8 @@ class Inscription(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2, default=500)
 
     def __str__(self):
-        return f'{self.inscription}, +{self.price}'
+        formatted_price = "{:.0f}".format(self.price)
+        return f'{self.inscription}, +{formatted_price}'
 
 
 class Cake(models.Model):
@@ -72,7 +78,8 @@ class Cake(models.Model):
     decor = models.ManyToManyField('Decor', blank=True)
 
     def __str__(self):
-        return f'{self.name}, {self.price}'
+        formatted_price = "{:.0f}".format(self.price)
+        return f'{self.name}, {formatted_price}'
 
     def save(self, *args, **kwargs):
         if self.is_custom:
@@ -101,7 +108,8 @@ class Order(models.Model):
     inscription = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
-        return f'Клиент: {self.customer_name}, Статус заказа: {self.status}, К оплате {self.total_price}'
+        formatted_price = "{:.0f}".format(self.total_price)
+        return f'Клиент: {self.customer_name}, Статус заказа: {self.status}, К оплате {formatted_price}'
 
     def calculate_total_price(self):
         cake_price = self.cake.price

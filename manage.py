@@ -3,6 +3,8 @@
 import os
 import sys
 
+from bot import run_bot
+
 
 def main():
     """Run administrative tasks."""
@@ -16,6 +18,7 @@ def main():
             "forget to activate a virtual environment?"
         ) from exc
     execute_from_command_line(sys.argv)
+    run_bot()  # Вызываем функцию run_bot() здесь, после выполнения основных административных задач
 
 
 if __name__ == '__main__':
