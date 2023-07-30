@@ -112,7 +112,7 @@ def get_cake(message, step):
 
         levels = Level.objects.all()
         for level in levels:
-            markup.add(KeyboardButton(f'{level.level}, (Цена: {level.price})'))
+            markup.add(KeyboardButton(f'{level.level}, +{int(level.price)}'))
         markup.add(KeyboardButton('Главное меню'))
         bot.send_photo(message.chat.id,
                        r'https://i.pinimg.com/originals/84/2e/89/842e89f178017480c87c4e530084bdca.jpg',
@@ -122,7 +122,7 @@ def get_cake(message, step):
     # Выбор формы для торта
     elif step == 2:
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        print(chats)
+
         if message.text == 'Главное меню':
             return show_main_menu(message)
 
@@ -130,7 +130,7 @@ def get_cake(message, step):
 
         shapes = Shape.objects.all()
         for shape in shapes:
-            markup.add(KeyboardButton(f'{shape.shape}, (Цена: {shape.price})'))
+            markup.add(KeyboardButton(f'{shape.shape}, +{int(shape.price)}'))
         markup.add(KeyboardButton('Главное меню'))
         bot.send_photo(message.chat.id, r'https://basket-01.wb.ru/vol138/part13858/13858945/images/big/1.jpg',
                        'Форма для торта', reply_markup=markup)
@@ -184,7 +184,7 @@ def get_cake(message, step):
 
         berries = Berry.objects.all()
         for berry in berries:
-            markup.add(KeyboardButton(f'{berry.name}, Цена {berry.price}'))
+            markup.add(KeyboardButton(f'{berry.name}, +{int(berry.price)}'))
         markup.add(KeyboardButton('Главное меню'))
         markup.add(KeyboardButton('Оформить заказ'))
         markup.add(KeyboardButton('Пропустить'))
@@ -213,7 +213,7 @@ def get_cake(message, step):
 
         decors = Decor.objects.all()
         for decor in decors:
-            markup.add(KeyboardButton(f'{decor.name}, Цена: {decor.price}'))
+            markup.add(KeyboardButton(f'{decor.name}, +{int(decor.price)}'))
         markup.add(KeyboardButton('Главное меню'))
         markup.add(KeyboardButton('Оформить заказ'))
         markup.add(KeyboardButton('Пропустить'))
@@ -244,7 +244,7 @@ def get_cake(message, step):
         markup.add(KeyboardButton('Оформить заказ'))
         bot.send_photo(message.chat.id,
                        r'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJ0sDLEcxz7BzeNgpLz0dUow5DBXUnWvmhhA&usqp=CAU',
-                       f'Мы можем разместить на торте любую надпись, например: «С днем рождения!»\nСтоимость {Inscription.objects.all().first().price} рублей\nДля этого введите ниже надпись',
+                       f'Мы можем разместить на торте любую надпись, например: «С днем рождения!»\nСтоимость {int(Inscription.objects.all().first().price)} рублей\nДля этого введите ниже надпись',
                        reply_markup=markup)
 
         return bot.register_next_step_handler(message, get_cake, 7)
@@ -283,7 +283,6 @@ def create_cake(message):
         )
         user['cake_id'] = cake.id
         user['ready_cake'] = f'{cake.name},'
-        print(user['ready_cake'])
 
     return bot.register_next_step_handler(message, get_delivery, 'order_cake')
 
@@ -368,7 +367,7 @@ def get_order(message, step='confirmation'):
             if cake:
                 bot.send_message(message.chat.id, 'Ваш заказ оформлен')
                 bot.send_message(message.chat.id,
-                                 f"Имя: {user['customer_name']}\nТорт: {user['ready_cake'][:user['ready_cake'].find(',')]}\nДобавки для торта: {user['berry'] if user['berry'] else ''} {user['decor'] if user['decor'] else ''} {user['inscription'] if user['inscription'] else ''}\nАдрес доставки: {user['address']}\nВремя получения:{user['delivery_time']}\nИтоговая стоимость: {cake.total_price}")
+                                 f"Имя: {user['customer_name']}\nТорт: {user['ready_cake'][:user['ready_cake'].find(',')]}\nДобавки для торта: {user['berry'] if user['berry'] else ''} {user['decor'] if user['decor'] else ''} {user['inscription'] if user['inscription'] else ''}\nАдрес доставки: {user['address']}\nВремя получения:{user['delivery_time']}\nИтоговая стоимость: {int(cake.total_price)}")
             else:
                 bot.send_message(message.chat.id, 'Что то пошло не так, позвоните нам 88005555555')
             time.sleep(5)
@@ -392,7 +391,7 @@ def get_order(message, step='confirmation'):
         if cake:
             bot.send_message(message.chat.id, 'Ваш заказ оформлен')
             bot.send_message(message.chat.id,
-                             f"Имя: {user['customer_name']}\nТорт: {user['ready_cake'][:user['ready_cake'].find(',')]}\nДобавки для торта: {user['berry'] if user['berry'] else ''} {user['decor'] if user['decor'] else ''} {user['inscription'] if user['inscription'] else ''}\nАдрес доставки: {user['address']}\nВремя получения:{user['delivery_time']}\nКомментарий к заказу: {user['comment']}\nИтоговая стоимость: {cake.total_price}")
+                             f"Имя: {user['customer_name']}\nТорт: {user['ready_cake'][:user['ready_cake'].find(',')]}\nДобавки для торта: {user['berry'] if user['berry'] else ''} {user['decor'] if user['decor'] else ''} {user['inscription'] if user['inscription'] else ''}\nАдрес доставки: {user['address']}\nВремя получения:{user['delivery_time']}\nКомментарий к заказу: {user['comment']}\nИтоговая стоимость: {int(cake.total_price)}")
         else:
             bot.send_message(message.chat.id, 'Что то пошло не так, позвоните нам 88005555555')
         time.sleep(5)
