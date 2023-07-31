@@ -164,7 +164,7 @@ def get_cake(message, step):
             if message.text == str(topping):
                 user['topping'] = message.text[:message.text.find(',')]
                 break
-        if not user:  # TODO обезапаситься от случайного ввода и желательно на всех этапах
+        if not user or user['agreement']:
             chats[message.chat.id] = {
                 'ready_cake': message.text,
                 'level': None,
@@ -281,6 +281,12 @@ def create_cake(message):
             level=Level.objects.filter(level=user['level']).first(),
             shape=Shape.objects.filter(shape=user['shape']).first(),
         )
+        if user['topping']:
+            cake.topping.update(name=Topping.objects.filter(name__startswith=user['topping']).first().name)
+        if user['berry']:
+            cake.berry.update(name=Berry.objects.filter(name__startswith=user['berry']).first().name)
+        if user['decor']:
+            cake.decor.update(name=Decor.objects.filter(name__startswith=user['decor']).first().name)
         user['cake_id'] = cake.id
         user['ready_cake'] = f'{cake.name},'
 
